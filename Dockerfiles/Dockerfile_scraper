@@ -41,11 +41,11 @@ ENV CHROME_BIN=/usr/bin/google-chrome
 ENV PATH="${PATH}:/usr/bin"
 
 # Instalar dependencias Python
-COPY src/lambda/requirements.txt .
+COPY src/lambda_/requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de Lambda
-COPY src/lambda/lambda_scraper.py src/lambda/scraping.py ./
+COPY src/lambda_/lambda_scraper.py src/lambda_/scraping.py ./
 
 # Handler de Lambda
 CMD ["lambda_scraper.lambda_handler"]
