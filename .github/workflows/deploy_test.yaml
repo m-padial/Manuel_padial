@@ -1,0 +1,51 @@
+name: Run Tests and Lint on Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install system dependencies for Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          unzip wget curl fontconfig libgtk-3-0 \
+          libasound2t64 libnss3 libxss1 libx11-xcb1 libxcomposite1 \
+          libxdamage1 libxrandr2 libgbm1 libxshmfence1 libxext6 libxi6
+
+    - name: Install Chrome and ChromeDriver
+      run: |
+        CHROME_VERSION=124.0.6367.91
+        wget -O /tmp/chrome.zip https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHROME_VERSION/linux64/chrome-linux64.zip
+        unzip /tmp/chrome.zip -d /opt/
+        sudo ln -sf /opt/chrome-linux64/chrome /usr/bin/google-chrome
+
+        wget -O /tmp/chromedriver.zip https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHROME_VERSION/linux64/chromedriver-linux64.zip
+        unzip /tmp/chromedriver.zip -d /opt/
+        sudo mv /opt/chromedriver-linux64/chromedriver /usr/bin/chromedriver
+        sudo chmod +x /usr/bin/chromedriver
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r src/lambda_/requirements.txt
+        pip install flake8
+
+    - name: Run flake8 linter
+      run: flake8 src/lambda_ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run scraping test
+      run: PYTHONPATH=src/lambda_ python src/lambda_/test.py
