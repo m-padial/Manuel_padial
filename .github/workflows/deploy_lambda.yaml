@@ -3,11 +3,6 @@ name: Deploy Lambdas, API and Dash
 on:
   push:
     branches: [main]
-    paths:
-      - 'terraform/**'
-      - 'Dockerfiles/**'
-      - 'src/**'
-      - '.github/workflows/lambda_deploy.yml'
 
 env:
   AWS_REGION: eu-west-1
@@ -24,25 +19,28 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
 
       - name: Terraform Init
         run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Apply - Crear Repositorio ECR
+        run: |
+          terraform apply -auto-approve \
+            -target=aws_ecr_repository.lambda_repository \
+            -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}"
         working-directory: terraform
 
       - id: login-ecr
@@ -68,15 +66,12 @@ jobs:
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_DASH }} -f ${{ env.DOCKERFILE_DASH }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_DASH }}
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan \
-          -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
-          -var="image_tag_scraper=${{ env.IMAGE_TAG_SCRAPER }}" \
-          -var="image_tag_vol=${{ env.IMAGE_TAG_VOL }}" \
-          -var="image_tag_api=${{ env.IMAGE_TAG_API }}" \
-          -var="image_tag_dash=${{ env.IMAGE_TAG_DASH }}"
-        working-directory: terraform
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+      - name: Terraform Apply - Desplegar Infraestructura
+        run: |
+          terraform apply -auto-approve \
+            -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
+            -var="image_tag_scraper=${{ env.IMAGE_TAG_SCRAPER }}" \
+            -var="image_tag_vol=${{ env.IMAGE_TAG_VOL }}" \
+            -var="image_tag_api=${{ env.IMAGE_TAG_API }}" \
+            -var="image_tag_dash=${{ env.IMAGE_TAG_DASH }}"
         working-directory: terraform
