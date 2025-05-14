@@ -9,7 +9,7 @@ COPY src/lambda/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la función Lambda
-COPY src/lambda/lambda_volatilidad.py .
+COPY src/lambda_/lambda_volatilidad.py .
 
 # Comando de inicio para Lambda
 CMD ["lambda_volatilidad.lambda_handler"]
